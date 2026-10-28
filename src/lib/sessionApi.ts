@@ -21,6 +21,11 @@ import {
   demoSubscribeWords,
 } from './demoStore'
 import { ensureAnonymousAuth, getFirebaseDb, isFirebaseConfigured } from './firebase'
+import {
+  sanitizeForFirebase,
+  sanitizeSessionForFirebase,
+  sanitizeSessionPatchForFirebase,
+} from './sanitizeFirebase'
 
 export function useRealtimeMode(): 'firebase' | 'demo' {
   return isFirebaseConfigured() ? 'firebase' : 'demo'
@@ -35,12 +40,12 @@ function responsesRef(code: string, slideIndex: number, kind: 'words' | 'shorts'
 }
 
 export async function createSession(code: string, adminUid: string, slides: Slide[]): Promise<void> {
-  const session: SessionData = {
+  const session = sanitizeSessionForFirebase({
     adminUid,
     currentSlideIndex: 0,
     slides,
     createdAt: Date.now(),
-  }
+  })
   if (!isFirebaseConfigured()) {
     demoSetSession(code, session)
     return
@@ -76,7 +81,7 @@ export async function updateSession(code: string, patch: Partial<SessionData>): 
     demoSetSession(code, { ...current, ...patch })
     return
   }
-  await update(sessionRef(code), patch)
+  await update(sessionRef(code), sanitizeSessionPatchForFirebase(patch))
 }
 
 export async function setSlides(code: string, slides: Slide[]): Promise<void> {
@@ -104,7 +109,7 @@ export async function submitWord(
   nickname?: string,
 ): Promise<void> {
   const uid = isFirebaseConfigured() ? await ensureAnonymousAuth() : getDemoParticipantId()
-  const entry: WordEntry = { text, nickname, at: Date.now() }
+  const entry = sanitizeForFirebase({ text, nickname, at: Date.now() })
   if (!isFirebaseConfigured()) {
     demoAddWord(code, slideIndex, uid, entry)
     return
@@ -132,7 +137,7 @@ export async function submitShortAnswer(
   nickname?: string,
 ): Promise<void> {
   const uid = isFirebaseConfigured() ? await ensureAnonymousAuth() : `demo-${crypto.randomUUID()}`
-  const answer: ShortAnswer = { text, nickname, uid, at: Date.now() }
+  const answer = sanitizeForFirebase({ text, nickname, uid, at: Date.now() })
   if (!isFirebaseConfigured()) {
     demoAddShort(code, slideIndex, crypto.randomUUID(), answer)
     return

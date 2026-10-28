@@ -14,6 +14,7 @@ import {
   subscribeVotes,
   subscribeWords,
 } from '../lib/sessionApi'
+import { sanitizeSlides } from '../lib/sanitizeFirebase'
 import type { ShortAnswer, Slide, SlideType, VoteRecord, WordEntry } from '../types'
 
 const SLIDE_TYPES: { value: SlideType; label: string }[] = [
@@ -23,12 +24,15 @@ const SLIDE_TYPES: { value: SlideType; label: string }[] = [
 ]
 
 function newSlide(type: SlideType = 'wordcloud'): Slide {
-  return {
+  const base = {
     id: crypto.randomUUID(),
     type,
     prompt: 'Your question here',
-    options: type === 'vote' ? ['Option A', 'Option B'] : undefined,
   }
+  if (type === 'vote') {
+    return { ...base, options: ['Option A', 'Option B'] }
+  }
+  return base
 }
 
 export function AdminPage() {
@@ -115,11 +119,7 @@ export function AdminPage() {
     if (!roomCode) return
     setBusy(true)
     try {
-      const sanitized = localSlides.map((s) => {
-        if (s.type !== 'vote') return s
-        const options = (s.options ?? []).map((o) => o.trim()).filter(Boolean).slice(0, 6)
-        return { ...s, options: options.length >= 2 ? options : ['Option A', 'Option B'] }
-      })
+      const sanitized = sanitizeSlides(localSlides)
       await setSlides(roomCode, sanitized)
       setLocalSlides(sanitized)
     } finally {
@@ -274,10 +274,15 @@ function SlideEditorList({
               value={slide.type}
               onChange={(e) => {
                 const type = e.target.value as SlideType
-                update(i, {
-                  type,
-                  options: type === 'vote' ? slide.options ?? ['A', 'B'] : undefined,
-                })
+                if (type === 'vote') {
+                  update(i, {
+                    type,
+                    options: slide.options?.length ? slide.options : ['Option A', 'Option B'],
+                  })
+                } else {
+                  const { options: _removed, ...rest } = slide
+                  update(i, { ...rest, type })
+                }
               }}
             >
               {SLIDE_TYPES.map((t) => (
