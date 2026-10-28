@@ -35,6 +35,10 @@ Without Firebase, the app runs in **demo mode**: session data is stored in **loc
 3. Create a **Realtime Database** (not Firestore). Start in test mode for setup, then lock down with rules below.
 4. Register a **Web app** and copy the config values into GitHub Actions secrets (for deploy) and/or a local `.env.local`:
 
+Production builds on GitHub Pages use **Actions secrets** when all five `VITE_FIREBASE_*` secrets are set; otherwise the committed **`.env.production`** file is used (same public web config values). To set secrets from your machine: `./scripts/set-github-firebase-secrets.sh` (requires `gh auth login` with permission to manage Actions secrets).
+
+Publish Realtime Database rules from `database.rules.json` in the Firebase console or run `firebase deploy --only database --project meteroo-6be7e` after `firebase login`.
+
 | Variable | Example |
 |----------|---------|
 | `VITE_FIREBASE_API_KEY` | `AIza…` |
