@@ -49,6 +49,7 @@ export function AdminPage() {
   const [words, setWords] = useState<Record<string, WordEntry>>({})
   const [shorts, setShorts] = useState<Record<string, ShortAnswer>>({})
   const [votes, setVotes] = useState<Record<string, VoteRecord>>({})
+  const [editorIndex, setEditorIndex] = useState(0)
 
   useEffect(() => {
     if (!connected || !roomCode) return
@@ -132,10 +133,22 @@ export function AdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync slides when room is joined
   }, [connected, roomCode])
 
+  useEffect(() => {
+    setEditorIndex(idx)
+  }, [idx])
+
   const goSlide = async (next: number) => {
     if (!session || !roomCode) return
     const clamped = Math.max(0, Math.min(next, session.slides.length - 1))
     await setCurrentSlide(roomCode, clamped)
+  }
+
+  const jumpToSlide = async (i: number) => {
+    const target = Math.max(0, Math.min(i, localSlides.length - 1))
+    setEditorIndex(target)
+    if (session && target < session.slides.length) {
+      await goSlide(target)
+    }
   }
 
   const showLinks = useMemo(() => {
@@ -191,7 +204,15 @@ export function AdminPage() {
             </Link>
           </p>
 
-          <SlideEditorList slides={localSlides} onChange={setLocalSlides} compact />
+          <SlideEditorList
+            slides={localSlides}
+            onChange={setLocalSlides}
+            compact
+            liveSlideIndex={idx}
+            editorIndex={editorIndex}
+            onJumpToSlide={(i) => void jumpToSlide(i)}
+            savedSlideCount={session?.slides.length ?? 0}
+          />
           <button type="button" className="btn btn-secondary" disabled={busy} onClick={saveSlides}>
             Save slides to room
           </button>
@@ -253,69 +274,76 @@ function SlideEditorList({
   slides,
   onChange,
   compact,
+  liveSlideIndex,
+  editorIndex,
+  onJumpToSlide,
+  savedSlideCount,
 }: {
   slides: Slide[]
   onChange: (s: Slide[]) => void
   compact?: boolean
+  liveSlideIndex?: number
+  editorIndex?: number
+  onJumpToSlide?: (index: number) => void
+  savedSlideCount?: number
 }) {
   const update = (i: number, patch: Partial<Slide>) => {
     const next = slides.map((s, j) => (j === i ? { ...s, ...patch } : s))
     onChange(next)
   }
 
+  const editIdx = compact ? (editorIndex ?? 0) : -1
+  const slideToEdit = compact ? slides[editIdx] : null
+
   return (
     <div className={`slide-editor-list${compact ? ' compact' : ''}`}>
       {!compact ? <h3>Slides</h3> : null}
-      {slides.map((slide, i) => (
-        <div key={slide.id} className="slide-editor">
-          <div className="slide-editor-head">
-            <span>#{i + 1}</span>
-            <select
-              value={slide.type}
-              onChange={(e) => {
-                const type = e.target.value as SlideType
-                if (type === 'vote') {
-                  update(i, {
-                    type,
-                    options: slide.options?.length ? slide.options : ['Option A', 'Option B'],
-                  })
-                } else {
-                  const { options: _removed, ...rest } = slide
-                  update(i, { ...rest, type })
-                }
-              }}
-            >
-              {SLIDE_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-            {slides.length > 1 ? (
+      {compact && onJumpToSlide ? (
+        <div className="slide-tabs" role="tablist" aria-label="Slides">
+          {slides.map((slide, i) => {
+            const isLive = i === liveSlideIndex
+            const isEditing = i === editIdx
+            const unsaved = savedSlideCount !== undefined && i >= savedSlideCount
+            return (
               <button
+                key={slide.id}
                 type="button"
-                className="btn-icon"
-                aria-label="Remove slide"
-                onClick={() => onChange(slides.filter((_, j) => j !== i))}
+                role="tab"
+                aria-selected={isEditing}
+                aria-current={isLive ? 'step' : undefined}
+                className={`slide-tab${isLive ? ' slide-tab--live' : ''}${isEditing ? ' slide-tab--active' : ''}`}
+                onClick={() => onJumpToSlide(i)}
+                title={unsaved ? 'Not saved to room yet — save slides to present' : `Present slide ${i + 1}`}
               >
-                ×
+                #{i + 1}
+                {isLive ? <span className="slide-tab-badge">Live</span> : null}
               </button>
-            ) : null}
-          </div>
-          <input
-            className="input"
-            value={slide.prompt}
-            onChange={(e) => update(i, { prompt: e.target.value })}
-            placeholder="Question prompt"
-          />
-          {slide.type === 'vote' ? (
-            <VoteOptionsEditor
-              options={slide.options ?? ['', '']}
-              onChange={(options) => update(i, { options })}
-            />
-          ) : null}
+            )
+          })}
         </div>
-      ))}
+      ) : null}
+      {compact && slideToEdit ? (
+        <SlideEditorFields
+          slide={slideToEdit}
+          index={editIdx}
+          slides={slides}
+          onChange={onChange}
+          update={update}
+          showHeadNumber={false}
+        />
+      ) : (
+        slides.map((slide, i) => (
+          <SlideEditorFields
+            key={slide.id}
+            slide={slide}
+            index={i}
+            slides={slides}
+            onChange={onChange}
+            update={update}
+            showHeadNumber
+          />
+        ))
+      )}
       <button
         type="button"
         className="btn btn-ghost"
@@ -323,6 +351,73 @@ function SlideEditorList({
       >
         + Add slide
       </button>
+    </div>
+  )
+}
+
+function SlideEditorFields({
+  slide,
+  index,
+  slides,
+  onChange,
+  update,
+  showHeadNumber = false,
+}: {
+  slide: Slide
+  index: number
+  slides: Slide[]
+  onChange: (s: Slide[]) => void
+  update: (i: number, patch: Partial<Slide>) => void
+  showHeadNumber?: boolean
+}) {
+  return (
+    <div className="slide-editor">
+      <div className="slide-editor-head">
+        {showHeadNumber ? <span>#{index + 1}</span> : null}
+        <select
+          value={slide.type}
+          onChange={(e) => {
+            const type = e.target.value as SlideType
+            if (type === 'vote') {
+              update(index, {
+                type,
+                options: slide.options?.length ? slide.options : ['Option A', 'Option B'],
+              })
+            } else {
+              const { options: _removed, ...rest } = slide
+              update(index, { ...rest, type })
+            }
+          }}
+        >
+          {SLIDE_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+        {slides.length > 1 ? (
+          <button
+            type="button"
+            className="btn-icon"
+            aria-label="Remove slide"
+            onClick={() => onChange(slides.filter((_, j) => j !== index))}
+          >
+            ×
+          </button>
+        ) : null}
+      </div>
+      <input
+        className="input"
+        value={slide.prompt}
+        onChange={(e) => update(index, { prompt: e.target.value })}
+        placeholder="Question prompt"
+      />
+      {slide.type === 'vote' ? (
+        <VoteOptionsEditor
+          options={slide.options ?? ['', '']}
+          onChange={(options) => update(index, { options })}
+        />
+      ) : null}
     </div>
   )
 }
