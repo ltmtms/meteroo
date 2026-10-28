@@ -51,6 +51,7 @@ export function SlideResults({
   shorts,
   votes,
   shuffleShort,
+  forDarkBackground,
 }: {
   type: 'wordcloud' | 'short' | 'vote'
   prompt: string
@@ -59,12 +60,13 @@ export function SlideResults({
   shorts: Record<string, ShortAnswer>
   votes: Record<string, VoteRecord>
   shuffleShort?: boolean
+  forDarkBackground?: boolean
 }) {
   return (
     <section className="slide-results">
       <h1 className="slide-prompt">{prompt}</h1>
       {type === 'wordcloud' ? (
-        <WordCloudView entries={words} />
+        <WordCloudView entries={words} forDarkBackground={forDarkBackground} />
       ) : type === 'short' ? (
         <ShortAnswersView entries={shorts} shuffle={shuffleShort} />
       ) : (

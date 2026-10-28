@@ -61,11 +61,11 @@ function slideKey(index: number): string {
   return String(index)
 }
 
-export function demoAddWord(code: string, slideIndex: number, uid: string, entry: WordEntry): void {
+export function demoAddWord(code: string, slideIndex: number, entry: WordEntry): void {
   const b = load(code)
   const sk = slideKey(slideIndex)
   if (!b.words[sk]) b.words[sk] = {}
-  b.words[sk][uid] = entry
+  b.words[sk][crypto.randomUUID()] = entry
   save(code, b)
 }
 

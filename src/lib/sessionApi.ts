@@ -8,11 +8,13 @@ import {
   update,
 } from 'firebase/database'
 import type { SessionData, ShortAnswer, Slide, VoteRecord, WordEntry } from '../types'
+import { MAX_WORDS_PER_PARTICIPANT_PER_SLIDE } from '../types'
 import {
   demoAddShort,
   demoAddWord,
   demoClearSlideResponses,
   demoGetSession,
+  demoGetWords,
   demoSetSession,
   demoSetVote,
   demoSubscribeSession,
@@ -25,6 +27,7 @@ import {
   sanitizeForFirebase,
   sanitizeSessionForFirebase,
   sanitizeSessionPatchForFirebase,
+  sanitizeSlides,
 } from './sanitizeFirebase'
 
 export function useRealtimeMode(): 'firebase' | 'demo' {
@@ -85,7 +88,25 @@ export async function updateSession(code: string, patch: Partial<SessionData>): 
 }
 
 export async function setSlides(code: string, slides: Slide[]): Promise<void> {
-  await updateSession(code, { slides })
+  const sanitized = sanitizeSlides(slides)
+  const maxIdx = Math.max(0, sanitized.length - 1)
+
+  if (!isFirebaseConfigured()) {
+    const current = demoGetSession(code)
+    if (!current) return
+    const currentSlideIndex = Math.min(current.currentSlideIndex, maxIdx)
+    demoSetSession(code, { ...current, slides: sanitized, currentSlideIndex })
+    return
+  }
+
+  const snap = await get(sessionRef(code))
+  if (!snap.exists()) return
+  const current = snap.val() as SessionData
+  const currentSlideIndex = Math.min(current.currentSlideIndex ?? 0, maxIdx)
+  await update(
+    sessionRef(code),
+    sanitizeSessionPatchForFirebase({ slides: sanitized, currentSlideIndex }),
+  )
 }
 
 export async function setCurrentSlide(code: string, index: number): Promise<void> {
@@ -109,12 +130,31 @@ export async function submitWord(
   nickname?: string,
 ): Promise<void> {
   const uid = isFirebaseConfigured() ? await ensureAnonymousAuth() : getDemoParticipantId()
-  const entry = sanitizeForFirebase({ text, nickname, at: Date.now() })
+  const wordsPath = isFirebaseConfigured()
+    ? responsesRef(code, slideIndex, 'words')
+    : null
+
+  if (isFirebaseConfigured() && wordsPath) {
+    const snap = await get(wordsPath)
+    const existing = (snap.val() ?? {}) as Record<string, WordEntry>
+    const count = Object.values(existing).filter((e) => e.uid === uid).length
+    if (count >= MAX_WORDS_PER_PARTICIPANT_PER_SLIDE) {
+      throw new Error(`You can submit up to ${MAX_WORDS_PER_PARTICIPANT_PER_SLIDE} words on this slide.`)
+    }
+  } else {
+    const existing = demoGetWords(code, slideIndex)
+    const count = Object.values(existing).filter((e) => e.uid === uid).length
+    if (count >= MAX_WORDS_PER_PARTICIPANT_PER_SLIDE) {
+      throw new Error(`You can submit up to ${MAX_WORDS_PER_PARTICIPANT_PER_SLIDE} words on this slide.`)
+    }
+  }
+
+  const entry = sanitizeForFirebase({ text, nickname, uid, at: Date.now() })
   if (!isFirebaseConfigured()) {
-    demoAddWord(code, slideIndex, uid, entry)
+    demoAddWord(code, slideIndex, entry)
     return
   }
-  await set(ref(getFirebaseDb(), `sessions/${code.toUpperCase()}/responses/${slideIndex}/words/${uid}`), entry)
+  await push(responsesRef(code, slideIndex, 'words'), entry)
 }
 
 export function subscribeWords(

@@ -17,8 +17,11 @@ export interface SessionData {
 export interface WordEntry {
   text: string
   nickname?: string
+  uid: string
   at: number
 }
+
+export const MAX_WORDS_PER_PARTICIPANT_PER_SLIDE = 10
 
 export interface ShortAnswer {
   text: string

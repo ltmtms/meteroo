@@ -8,9 +8,10 @@ interface CloudWord {
   weight: number
 }
 
-const COLORS = [
+/** Readable on light admin/preview backgrounds */
+const COLORS_LIGHT = [
+  '#c45d3e',
   '#e07a5f',
-  '#f2cc8f',
   '#81b29a',
   '#3d405b',
   '#f4a261',
@@ -21,13 +22,37 @@ const COLORS = [
   '#606c38',
 ]
 
+/** Bright / pastel only — for dark Show projector background */
+const COLORS_DARK = [
+  '#f2cc8f',
+  '#81b29a',
+  '#ffb4a2',
+  '#f4a261',
+  '#e9c46a',
+  '#2dd4bf',
+  '#a5d8ff',
+  '#ffc6ff',
+  '#caffbf',
+  '#ffe066',
+  '#ffadad',
+  '#b8f2e6',
+]
+
 function hashString(s: string): number {
   let h = 0
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
   return Math.abs(h)
 }
 
-export function WordCloudView({ entries }: { entries: Record<string, WordEntry> }) {
+export function WordCloudView({
+  entries,
+  forDarkBackground = false,
+}: {
+  entries: Record<string, WordEntry>
+  forDarkBackground?: boolean
+}) {
+  const colors = forDarkBackground ? COLORS_DARK : COLORS_LIGHT
+
   const words = useMemo(() => {
     const map = new Map<string, { display: string; count: number }>()
     for (const e of Object.values(entries)) {
@@ -58,13 +83,13 @@ export function WordCloudView({ entries }: { entries: Record<string, WordEntry> 
 
   return (
     <div className="word-cloud" aria-live="polite">
-      {words.map((w) => {
+      {words.map((w, idx) => {
         const h = hashString(w.text)
-        const color = COLORS[h % COLORS.length]
+        const color = colors[h % colors.length]
         const rotate = (h % 7) - 3
         return (
           <span
-            key={w.text}
+            key={`${w.text}-${idx}`}
             className="word-cloud-item"
             style={{
               fontSize: `${w.weight}rem`,

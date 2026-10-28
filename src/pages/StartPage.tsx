@@ -12,7 +12,9 @@ import {
   submitWord,
   subscribeSession,
   subscribeVotes,
+  subscribeWords,
 } from '../lib/sessionApi'
+import { MAX_WORDS_PER_PARTICIPANT_PER_SLIDE } from '../types'
 import type { SessionData, VoteRecord } from '../types'
 
 export function StartPage() {
@@ -26,6 +28,7 @@ export function StartPage() {
   const [sending, setSending] = useState(false)
   const [votes, setVotes] = useState<Record<string, VoteRecord>>({})
   const [myVote, setMyVote] = useState<number | null>(null)
+  const [wordCount, setWordCount] = useState(0)
 
   useEffect(() => {
     const fromUrl = params.get('code')
@@ -48,6 +51,25 @@ export function StartPage() {
     if (!joined || !code || !slide || slide.type !== 'vote') return
     return subscribeVotes(code, slideIndex, setVotes)
   }, [joined, code, slide?.type, slideIndex, slide])
+
+  useEffect(() => {
+    if (!joined || !code || slide?.type !== 'wordcloud') return
+    return subscribeWords(code, slideIndex, (entries) => {
+      void (async () => {
+        const uid = await getParticipantUid()
+        const n = Object.values(entries).filter((e) => e.uid === uid).length
+        setWordCount(n)
+      })()
+    })
+  }, [joined, code, slide?.type, slideIndex, slide])
+
+  useEffect(() => {
+    if (slideIndex !== undefined) {
+      setText('')
+      setWordCount(0)
+      setError(null)
+    }
+  }, [slideIndex, slide?.type])
 
   useEffect(() => {
     if (!joined || !code || slide?.type !== 'vote') return
@@ -80,6 +102,7 @@ export function StartPage() {
   const sendText = async () => {
     if (!slide || !text.trim()) return
     setSending(true)
+    setError(null)
     try {
       const nick = nickname.trim() || undefined
       if (slide.type === 'wordcloud') {
@@ -88,6 +111,8 @@ export function StartPage() {
         await submitShortAnswer(code, slideIndex, text.trim(), nick)
       }
       setText('')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not submit')
     } finally {
       setSending(false)
     }
@@ -177,10 +202,16 @@ export function StartPage() {
                   onChange={(e) => setText(e.target.value)}
                   placeholder={slide.type === 'wordcloud' ? 'Type a word or phrase…' : 'Your answer…'}
                 />
+                {slide.type === 'wordcloud' ? (
+                  <p className="muted small center">
+                    Send another word · 再送一個詞 ({wordCount}/{MAX_WORDS_PER_PARTICIPANT_PER_SLIDE})
+                  </p>
+                ) : null}
+                {error ? <p className="error">{error}</p> : null}
                 <button
                   type="button"
                   className="btn btn-primary btn-block btn-lg"
-                  disabled={sending || !text.trim()}
+                  disabled={sending || !text.trim() || (slide.type === 'wordcloud' && wordCount >= MAX_WORDS_PER_PARTICIPANT_PER_SLIDE)}
                   onClick={sendText}
                 >
                   Submit

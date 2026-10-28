@@ -104,7 +104,8 @@ export function ShowPage() {
           words={words}
           shorts={shorts}
           votes={votes}
-          shuffleShort={slide.type === 'short'}
+          shuffleShort={false}
+          forDarkBackground
         />
       )}
     </div>

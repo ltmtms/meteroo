@@ -16,8 +16,8 @@ export function VoteChartView({ options, votes, compact }: Props) {
     return c
   }, [options, votes])
 
-  const total = counts.reduce((a, b) => a + b, 0) || 1
-  const max = Math.max(1, ...counts)
+  const total = counts.reduce((a, b) => a + b, 0)
+  const max = Math.max(0, ...counts)
 
   if (options.length === 0) {
     return <p className="empty-state">No options configured</p>
@@ -26,8 +26,8 @@ export function VoteChartView({ options, votes, compact }: Props) {
   return (
     <div className={`vote-chart${compact ? ' vote-chart--compact' : ''}`} aria-live="polite">
       {options.map((label, i) => {
-        const pct = Math.round((counts[i] / total) * 100)
-        const widthPct = (counts[i] / max) * 100
+        const pct = total === 0 ? 0 : Math.round((counts[i] / total) * 100)
+        const widthPct = max === 0 ? 0 : (counts[i] / max) * 100
         return (
           <div key={i} className="vote-row">
             <div className="vote-label-row">
@@ -39,13 +39,19 @@ export function VoteChartView({ options, votes, compact }: Props) {
             <div className="vote-bar-track">
               <div
                 className="vote-bar-fill"
-                style={{ width: `${widthPct}%`, transition: 'width 0.45s ease' }}
+                style={{
+                  width: `${widthPct}%`,
+                  minWidth: counts[i] > 0 ? 4 : 0,
+                  transition: 'width 0.45s ease',
+                }}
               />
             </div>
           </div>
         )
       })}
-      <p className="vote-total">{total} vote{total === 1 ? '' : 's'} · 票</p>
+      <p className="vote-total">
+        {total} vote{total === 1 ? '' : 's'} · 票
+      </p>
     </div>
   )
 }
