@@ -17,6 +17,8 @@ import {
 import { sanitizeSlides } from '../lib/sanitizeFirebase'
 import type { ShortAnswer, Slide, SlideType, VoteRecord, WordEntry } from '../types'
 
+const SLIDE_PROMPT_PLACEHOLDER = 'Your question here · 在此輸入問題'
+
 const SLIDE_TYPES: { value: SlideType; label: string }[] = [
   { value: 'wordcloud', label: 'Word cloud' },
   { value: 'short', label: 'Short answer' },
@@ -27,7 +29,7 @@ function newSlide(type: SlideType = 'wordcloud'): Slide {
   const base = {
     id: crypto.randomUUID(),
     type,
-    prompt: 'Your question here',
+    prompt: '',
   }
   if (type === 'vote') {
     return { ...base, options: ['Option A', 'Option B'] }
@@ -410,7 +412,7 @@ function SlideEditorFields({
         className="input"
         value={slide.prompt}
         onChange={(e) => update(index, { prompt: e.target.value })}
-        placeholder="Question prompt"
+        placeholder={SLIDE_PROMPT_PLACEHOLDER}
       />
       {slide.type === 'vote' ? (
         <VoteOptionsEditor

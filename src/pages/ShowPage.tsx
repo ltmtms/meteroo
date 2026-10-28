@@ -2,6 +2,7 @@ import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { SlideResults } from '../components/Layout'
+import { ShowJoinQr } from '../components/ShowJoinQr'
 import { normalizeRoomCode } from '../lib/roomCode'
 import {
   joinSessionExists,
@@ -93,6 +94,7 @@ export function ShowPage() {
     <div className="show-screen">
       <div className="show-top">
         <span className="show-room">{code}</span>
+        <ShowJoinQr roomCode={code} />
       </div>
       {!session || !slide ? (
         <p className="empty-state light">Waiting for presenter…</p>
