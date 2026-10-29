@@ -1,0 +1,23 @@
+name: Deploy Firebase RTDB rules
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install -g firebase-tools
+      - name: Deploy database rules
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -z "$FIREBASE_TOKEN" ]; then
+            echo "Set repository secret FIREBASE_TOKEN (firebase login:ci) to deploy rules from CI." >&2
+            exit 1
+          fi
+          firebase deploy --only database --project meteroo-6be7e --non-interactive

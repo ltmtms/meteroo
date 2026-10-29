@@ -3,7 +3,6 @@ import {
   onValue,
   push,
   ref,
-  remove,
   set,
   update,
 } from 'firebase/database'
@@ -118,9 +117,27 @@ export async function resetSlideResponses(code: string, slideIndex: number): Pro
     demoClearSlideResponses(code, slideIndex)
     return
   }
-  await remove(responsesRef(code, slideIndex, 'words'))
-  await remove(responsesRef(code, slideIndex, 'shorts'))
-  await remove(responsesRef(code, slideIndex, 'votes'))
+  await clearResponseCollection(code, slideIndex, 'words')
+  await clearResponseCollection(code, slideIndex, 'shorts')
+  await clearResponseCollection(code, slideIndex, 'votes')
+}
+
+async function clearResponseCollection(
+  code: string,
+  slideIndex: number,
+  kind: 'words' | 'shorts' | 'votes',
+): Promise<void> {
+  const collectionRef = responsesRef(code, slideIndex, kind)
+  const snap = await get(collectionRef)
+  if (!snap.exists()) return
+  const entries = snap.val() as Record<string, unknown>
+  const patch: Record<string, null> = {}
+  for (const key of Object.keys(entries)) {
+    patch[key] = null
+  }
+  if (Object.keys(patch).length > 0) {
+    await update(collectionRef, patch)
+  }
 }
 
 export async function submitWord(

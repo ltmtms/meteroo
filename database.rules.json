@@ -3,7 +3,38 @@
     "sessions": {
       "$code": {
         ".read": true,
-        ".write": "auth != null"
+        ".write": "auth != null && !data.exists() && newData.child('adminUid').val() == auth.uid && newData.child('createdAt').isNumber() && newData.child('currentSlideIndex').isNumber() && newData.child('slides').exists() && !newData.hasChild('responses')",
+        "adminUid": {
+          ".write": false
+        },
+        "createdAt": {
+          ".write": "auth != null && auth.uid == root.child('sessions').child($code).child('adminUid').val()"
+        },
+        "currentSlideIndex": {
+          ".write": "auth != null && auth.uid == root.child('sessions').child($code).child('adminUid').val() && newData.isNumber() && newData.val() >= 0"
+        },
+        "slides": {
+          ".write": "auth != null && auth.uid == root.child('sessions').child($code).child('adminUid').val()"
+        },
+        "responses": {
+          "$slideIndex": {
+            "words": {
+              "$wordId": {
+                ".write": "auth != null && ( (data.exists() && !newData.exists() && auth.uid == root.child('sessions').child($code).child('adminUid').val()) || (!data.exists() && newData.exists() && newData.child('uid').val() == auth.uid && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 500 && newData.child('at').isNumber() && (!newData.hasChild('nickname') || (newData.child('nickname').isString() && newData.child('nickname').val().length <= 24))) )"
+              }
+            },
+            "shorts": {
+              "$shortId": {
+                ".write": "auth != null && ( (data.exists() && !newData.exists() && auth.uid == root.child('sessions').child($code).child('adminUid').val()) || (!data.exists() && newData.exists() && newData.child('uid').val() == auth.uid && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 2000 && newData.child('at').isNumber() && (!newData.hasChild('nickname') || (newData.child('nickname').isString() && newData.child('nickname').val().length <= 24))) )"
+              }
+            },
+            "votes": {
+              "$uid": {
+                ".write": "auth != null && ( (data.exists() && !newData.exists() && auth.uid == root.child('sessions').child($code).child('adminUid').val()) || ($uid == auth.uid && newData.exists() && newData.child('optionIndex').isNumber() && newData.child('optionIndex').val() >= 0 && newData.child('optionIndex').val() <= 5 && newData.child('at').isNumber()) )"
+              }
+            }
+          }
+        }
       }
     }
   }
