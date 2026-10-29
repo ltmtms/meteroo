@@ -2,6 +2,11 @@ name: Deploy Firebase RTDB rules
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'database.rules.json'
+      - 'firebase.json'
 
 jobs:
   deploy-rules:

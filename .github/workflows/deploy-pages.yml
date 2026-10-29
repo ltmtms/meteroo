@@ -24,18 +24,15 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Build (Firebase from Actions secrets)
-        run: |
-          if [ -z "${{ secrets.VITE_FIREBASE_PROJECT_ID }}" ]; then
-            echo "Missing VITE_FIREBASE_* Actions secrets — add them in repo Settings → Secrets." >&2
-            exit 1
-          fi
-          export VITE_FIREBASE_API_KEY="${{ secrets.VITE_FIREBASE_API_KEY }}"
-          export VITE_FIREBASE_AUTH_DOMAIN="${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}"
-          export VITE_FIREBASE_DATABASE_URL="${{ secrets.VITE_FIREBASE_DATABASE_URL }}"
-          export VITE_FIREBASE_PROJECT_ID="${{ secrets.VITE_FIREBASE_PROJECT_ID }}"
-          export VITE_FIREBASE_APP_ID="${{ secrets.VITE_FIREBASE_APP_ID }}"
-          npm run build
+      - name: Prepare Firebase env (Actions secrets, else public config file)
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_DATABASE_URL: ${{ secrets.VITE_FIREBASE_DATABASE_URL }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+        run: node scripts/prepare-firebase-env.mjs
+      - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

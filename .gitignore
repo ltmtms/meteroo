@@ -12,10 +12,15 @@ dist
 dist-ssr
 *.local
 
-# Environment (never commit live Firebase / secrets)
+# Environment (never commit local overrides)
 .env
 .env.*
 !.env.example
+.env.production.local
+
+# Public Firebase web SDK config (same values as Actions secrets / built JS).
+# Not a server secret — protect with RTDB rules + optional GCP API key referrer limits.
+# config/firebase.public.json is tracked intentionally for CI fallback.
 
 # Editor directories and files
 .vscode/*
